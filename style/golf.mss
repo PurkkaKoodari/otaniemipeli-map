@@ -19,7 +19,7 @@
   }
   ::high-zoom[zoom >= 15] {
     [feature = 'golf_rough'] {
-      polygon-pattern-file: url('symbols/golf_rough.svg');
+      /* polygon-pattern-file: url('symbols/golf_rough.svg'); */
     }
   }
 }

@@ -15,6 +15,10 @@ _parts:
   osm2pgsql: &osm2pgsql
     type: "postgis"
     dbname: "gis"
+    user: gis
+    password: postgis
+    host: localhost
+    port: 5433
     key_field: ""
     geometry_field: "way"
     srid: *srid
@@ -258,8 +262,8 @@ Layer:
       <<: *osm2pgsql
       table: |-
         (SELECT
-            way
-          FROM water_polygons
+            ST_Intersection(p.way, ST_MakeEnvelope(2761573.852582845, 8440215.66215398, 2765634.787606984, 8443119.79222385, 3857)) AS way
+          FROM water_polygons p
         ) AS ocean
     properties:
       minzoom: 10
@@ -293,6 +297,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 9
+      status: 0
   - id: icesheet-outlines
     geometry: linestring
     <<: *extents
@@ -319,6 +324,7 @@ Layer:
         ) AS marinas_area
     properties:
       minzoom: 14
+      status: 0
   - id: water-barriers-line
     geometry: linestring
     <<: *extents
@@ -521,6 +527,7 @@ Layer:
       cache-features: true
       group-by: layernotnull
       minzoom: 10
+      status: 0
   - id: landuse-overlay
     geometry: polygon
     <<: *extents
@@ -605,6 +612,7 @@ Layer:
         ) AS ferry_routes
     properties:
       minzoom: 8
+      status: 0
   - id: turning-circle-casing
     geometry: point
     <<: *extents
@@ -660,10 +668,12 @@ Layer:
                               THEN railway END))
             ) AS feature
           FROM planet_osm_polygon
-          WHERE highway IN ('pedestrian', 'footway', 'service', 'platform')
+          WHERE (highway IN ('pedestrian', 'footway', 'service', 'platform')
+                AND (highway NOT IN ('footway', 'steps') OR highway IS NULL OR tags->'indoor' NOT IN ('yes') OR (tags->'indoor') IS NULL))
             OR (railway IN ('platform')
                 AND (tags->'location' NOT IN ('underground') OR (tags->'location') IS NULL)
-                AND (tunnel NOT IN ('yes', 'building_passage') OR tunnel IS NULL))
+                AND (tunnel NOT IN ('yes', 'building_passage') OR tunnel IS NULL)
+                AND (tags->'subway' NOT IN ('yes') OR (tags->'subway') IS NULL))
           ORDER BY COALESCE(layer,0), way_area DESC
         ) AS highway_area_casing
     properties:
@@ -721,6 +731,7 @@ Layer:
               WHERE (tunnel IS NULL OR NOT tunnel IN ('yes', 'building_passage'))
                 AND (covered IS NULL OR NOT covered = 'yes')
                 AND (bridge IS NULL OR NOT bridge IN ('yes', 'boardwalk', 'cantilever', 'covered', 'low_water_crossing', 'movable', 'trestle', 'viaduct'))
+                AND (highway NOT IN ('footway', 'steps') OR highway IS NULL OR tags->'indoor' NOT IN ('yes') OR (tags->'indoor') IS NULL)
                 AND highway IS NOT NULL -- end of road select
             UNION ALL
             SELECT
@@ -747,6 +758,7 @@ Layer:
                 AND (covered IS NULL OR NOT covered = 'yes' OR railway IN ('platform'))
                 AND (bridge IS NULL OR NOT bridge IN ('yes', 'boardwalk', 'cantilever', 'covered', 'low_water_crossing', 'movable', 'trestle', 'viaduct'))
                 AND (railway NOT IN ('platform') OR (tags->'location' NOT IN ('underground')) OR (tags->'location') IS NULL)
+                AND (tags->'subway' NOT IN ('yes') OR (tags->'subway') IS NULL)
                 AND railway IS NOT NULL -- end of rail select
             ) AS features
           ORDER BY
@@ -785,10 +797,12 @@ Layer:
               ELSE NULL
             END AS int_surface
           FROM planet_osm_polygon
-          WHERE highway IN ('pedestrian', 'footway', 'service', 'living_street', 'platform', 'services')
+          WHERE (highway IN ('pedestrian', 'footway', 'service', 'living_street', 'platform', 'services')
+                AND (highway NOT IN ('footway', 'steps') OR highway IS NULL OR tags->'indoor' NOT IN ('yes') OR (tags->'indoor') IS NULL))
             OR (railway IN ('platform')
                 AND (tags->'location' NOT IN ('underground') OR (tags->'location') IS NULL)
-                AND (tunnel NOT IN ('yes', 'building_passage') OR tunnel IS NULL))
+                AND (tunnel NOT IN ('yes', 'building_passage') OR tunnel IS NULL)
+                AND (tags->'subway' NOT IN ('yes') OR (tags->'subway') IS NULL))
             OR aeroway IN ('runway', 'taxiway', 'helipad')
           ORDER BY COALESCE(layer,0), way_area desc
         ) AS highway_area_fill
@@ -1088,6 +1102,7 @@ Layer:
         ) AS golf_line
     properties:
       minzoom: 16
+      status: 0
   - id: necountries
     geometry: linestring
     <<: *extents
@@ -1119,6 +1134,7 @@ Layer:
     properties:
       minzoom: 4
       maxzoom: 7
+      status: 0
   - id: admin-mid-zoom
     geometry: linestring
     <<: *extents
@@ -1137,6 +1153,7 @@ Layer:
     properties:
       minzoom: 8
       maxzoom: 12
+      status: 0
   - id: admin-high-zoom
     geometry: linestring
     <<: *extents
@@ -1154,6 +1171,7 @@ Layer:
         ) AS admin_high_zoom
     properties:
       minzoom: 13
+      status: 0
   - id: power-minorline
     geometry: linestring
     <<: *extents
@@ -1167,6 +1185,7 @@ Layer:
         ) AS power_minorline
     properties:
       minzoom: 16
+      status: 0
   - id: power-line
     geometry: linestring
     <<: *extents
@@ -1180,6 +1199,7 @@ Layer:
         ) AS power_line
     properties:
       minzoom: 14
+      status: 0
   - id: tourism-boundary
     geometry: polygon
     <<: *extents
@@ -1217,6 +1237,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 8
+      status: 0
   - id: trees
     geometry: polygon
     <<: *extents
@@ -1265,6 +1286,7 @@ Layer:
         ) AS country_names
     properties:
       minzoom: 2
+      status: 0
   - id: capital-names
     geometry: point
     <<: *extents
@@ -1287,6 +1309,7 @@ Layer:
     properties:
       minzoom: 3
       maxzoom: 15
+      status: 0
   - id: state-names
     geometry: point
     <<: *extents
@@ -1311,6 +1334,7 @@ Layer:
         ) AS state_names
     properties:
       minzoom: 4
+      status: 0
   - id: placenames-medium
     geometry: point
     <<: *extents
@@ -1356,6 +1380,7 @@ Layer:
       cache-features: true
       minzoom: 4
       maxzoom: 15
+      status: 0
   - id: placenames-small
     geometry: point
     <<: *extents
@@ -1387,6 +1412,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 12
+      status: 0
   - id: stations
     geometry: point
     <<: *extents
@@ -1438,6 +1464,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 12
+      status: 0
   - id: junctions
     geometry: point
     <<: *extents
@@ -1491,6 +1518,7 @@ Layer:
         ) AS bridge_text
     properties:
       minzoom: 11
+      status: 0
   - id: county-names
     geometry: point
     <<: *extents
@@ -1516,6 +1544,7 @@ Layer:
         ) AS county_names
     properties:
       minzoom: 8
+      status: 0
   - id: amenity-points
     geometry: point
     <<: *extents
@@ -1739,6 +1768,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 10
+      status: 0
   - id: amenity-line
     geometry: linestring
     <<: *extents
@@ -1826,6 +1856,7 @@ Layer:
     properties:
       minzoom: 10
       maxzoom: 12
+      status: 0
   - id: roads-text-ref
     geometry: linestring
     <<: *extents
@@ -1877,6 +1908,7 @@ Layer:
         ) AS roads_text_ref
     properties:
       minzoom: 13
+      status: 0
   - id: roads-area-text-name
     geometry: point
     <<: *extents
@@ -1902,6 +1934,7 @@ Layer:
         ) AS roads_area_text_name
     properties:
       minzoom: 15
+      status: 0
   - id: roads-text-name
     geometry: linestring
     <<: *extents
@@ -1934,6 +1967,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 13
+      status: 0
   - id: paths-text-name
     geometry: linestring
     <<: *extents
@@ -1958,6 +1992,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 15
+      status: 0
   - id: railways-text-name
     geometry: linestring
     <<: *extents
@@ -1994,6 +2029,7 @@ Layer:
         ) AS railways_text_name
     properties:
       minzoom: 11
+      status: 0
   - id: roads-text-ref-minor
     geometry: linestring
     <<: *extents
@@ -2038,6 +2074,7 @@ Layer:
         ) AS roads_text_ref_minor
     properties:
       minzoom: 15
+      status: 0
   - id: text-poly-low-zoom
     geometry: point
     <<: *extents
@@ -2077,6 +2114,7 @@ Layer:
     properties:
       minzoom: 4
       maxzoom: 9
+      status: 0
   - id: text-line
     geometry: linestring
     <<: *extents
@@ -2108,6 +2146,7 @@ Layer:
         ) AS text_line
     properties:
       minzoom: 10
+      status: 0
   - id: text-point
     geometry: point
     <<: *extents
@@ -2118,6 +2157,7 @@ Layer:
       table: *amenity_points_sql
     properties:
       minzoom: 10
+      status: 0
   - id: building-text
     geometry: point
     <<: *extents
@@ -2138,6 +2178,7 @@ Layer:
         ) AS building_text
     properties:
       minzoom: 14
+      status: 0
   - id: interpolation
     geometry: linestring
     <<: *extents
@@ -2184,6 +2225,7 @@ Layer:
         ) AS addresses
     properties:
       minzoom: 17
+      status: 0
   - id: water-lines-text
     geometry: linestring
     <<: *extents
@@ -2212,6 +2254,7 @@ Layer:
         ) AS water_lines_text
     properties:
       minzoom: 13
+      status: 0
   - id: ferry-routes-text
     geometry: linestring
     <<: *extents
@@ -2228,6 +2271,7 @@ Layer:
         ) AS ferry_routes_text
     properties:
       minzoom: 13
+      status: 0
   - id: admin-text
     geometry: linestring
     <<: *extents
@@ -2249,6 +2293,7 @@ Layer:
         ) AS admin_text
     properties:
       minzoom: 11
+      status: 0
   - id: protected-areas-text
     geometry: linestring
     <<: *extents
@@ -2269,6 +2314,7 @@ Layer:
         ) AS protected_areas_text
     properties:
       minzoom: 13
+      status: 0
   - id: amenity-low-priority
     geometry: point
     <<: *extents
@@ -2337,6 +2383,7 @@ Layer:
     properties:
       cache-features: true
       minzoom: 14
+      status: 0
   - id: text-low-priority
     geometry: point
     <<: *extents
@@ -2347,3 +2394,4 @@ Layer:
       table: *amenity_low_priority_sql
     properties:
       minzoom: 17
+      status: 0
